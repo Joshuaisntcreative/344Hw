@@ -1,1 +1,57 @@
+#include <iostream>
+#include <omp.h>
+#include <vector>
+using namespace std;
 
+
+int sequentialSum(std::vector<int> nums, int left, int right){
+    int sum = 0;
+    for(int i = left; i < right; i++){
+        sum += nums[i];
+    }
+    return sum;
+}
+
+int parallelPrefixSum(std::vector<int> nums, int left, int right, int threshold) {
+    //threshold is going to be our base case, ie when we split the vector 
+    
+    if(right - left <= threshold){
+        return sequentialSum(nums,left,right);
+    }
+
+    int middle = (left + right)/2;
+
+    #pragma omp task shared(nums), firstprivate(left,middle,threshold)
+    {
+        parallelPrefixSum(nums,left,middle,threshold);
+    }
+
+    #pragma omp task shared(nums), firstprivate(middle, right, threshold)
+    {
+        parallelPrefixSum(nums,middle, right,threshold);
+    }
+    #pragma omp taskwait
+}
+
+int main(){
+    std::vector<int> nums = {1,2,3,4,5,6,7,8,9,10,11,12,13,14};
+    //we will utilize all the threads available to us.
+    //divide the length of the input array by the max threads to get the size of each chunk
+    
+    int threads = omp_get_max_threads();
+    //threshold value will be chunk
+    int chunk = nums.size() / threads;
+    int value = 0;
+
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {      
+            value = parallelPrefixSum(nums, 0, nums.size(), chunk);
+        }
+    }
+
+
+    cout << value << endl;
+    
+}
