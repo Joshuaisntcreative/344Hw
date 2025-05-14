@@ -4,7 +4,7 @@
 using namespace std;
 
 
-int sequentialSum(std::vector<int> nums, int left, int right){
+int sequentialSum(std::vector<int>& nums, int left, int right){
     int sum = 0;
     for(int i = left; i < right; i++){
         sum += nums[i];
@@ -12,25 +12,29 @@ int sequentialSum(std::vector<int> nums, int left, int right){
     return sum;
 }
 
-int parallelPrefixSum(std::vector<int> nums, int left, int right, int threshold) {
+int parallelPrefixSum(std::vector<int> &nums, int left, int right, int threshold) {
     //threshold is going to be our base case, ie when we split the vector 
+
     
     if(right - left <= threshold){
         return sequentialSum(nums,left,right);
     }
 
     int middle = (left + right)/2;
+    int leftSum = 0;
+    int rightSum = 0;
 
-    #pragma omp task shared(nums), firstprivate(left,middle,threshold)
+    #pragma omp task shared(leftSum), firstprivate(left,middle,threshold)
     {
-        parallelPrefixSum(nums,left,middle,threshold);
+        leftSum = parallelPrefixSum(nums,left,middle,threshold);
     }
 
-    #pragma omp task shared(nums), firstprivate(middle, right, threshold)
+    #pragma omp task shared(rightSum), firstprivate(middle, right, threshold)
     {
-        parallelPrefixSum(nums,middle, right,threshold);
+        rightSum = parallelPrefixSum(nums,middle, right,threshold);
     }
     #pragma omp taskwait
+    return rightSum + leftSum;
 }
 
 int main(){
