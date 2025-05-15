@@ -1,0 +1,68 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <omp.h>
+#include <string>
+#include <filesystem>
+
+using namespace std;
+
+int calculateFileSize(string filename, int threads)
+{
+    filesystem::path filePath = filename;
+    long fileSize;
+    int chunks = 0;
+    cout << "The number of available threads is " << threads << " threads " << endl;
+
+
+    if(filesystem::exists(filePath))
+    {
+        fileSize = filesystem::file_size(filePath);
+        chunks = fileSize/threads;
+        cout << "The size of the file is: " << fileSize << " bytes " << endl;
+        cout << "Each threads will compute " << chunks << " elements in each respective thread" << endl;
+        
+    }
+    else
+    {
+        std::cout << "Problem finding File" << endl;
+        
+    }
+    return chunks;
+
+}
+
+vector<int> readFromFile(string fileName, int threads,int chunks){
+    ifstream inputFile(fileName);
+    vector<int> returned;
+
+    if(!inputFile.is_open()){
+        cout << "Could not open file" << endl;
+    }
+    else
+    {
+        std::string line;
+        while(std::getline(inputFile,line)){
+            int num = stoi(line);
+            returned.push_back(num);
+        }
+        inputFile.close();
+    }
+    return returned;
+}
+
+fileSize
+    int threads = omp_get_max_threads();
+
+    //bytes of data in the file
+    int chunks = calculateFileSize("prob3input.dat", threads);
+    #pragma omp parallel
+    {
+        #pragma omp single
+        {
+            readFromFile("prob3input.dat", threads, chunks);
+        }
+    }
+    
+}
+
