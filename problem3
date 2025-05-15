@@ -7,11 +7,12 @@
 
 using namespace std;
 
-int calculateFileSize(string filename, int threads)
+vector<int>calculateFileSize(string filename, int threads)
 {
     filesystem::path filePath = filename;
     long fileSize;
     int chunks = 0;
+    vector<int> chunksAndFileSize;
     cout << "The number of available threads is " << threads << " threads " << endl;
 
 
@@ -28,13 +29,20 @@ int calculateFileSize(string filename, int threads)
         std::cout << "Problem finding File" << endl;
         
     }
-    return chunks;
+    chunksAndFileSize.push_back(chunks);
+    chunksAndFileSize.push_back(fileSize);
+
+    return chunksAndFileSize;
 
 }
 
-vector<int> readFromFile(string fileName, int threads,int chunks){
+string readFromFile(string fileName, int threads,vector<int>chunksAndFileSize){
     ifstream inputFile(fileName);
     vector<int> returned;
+    string answer = "Sorted";
+    
+    int middle = chunksAndFileSize[0]/2;
+
 
     if(!inputFile.is_open()){
         cout << "Could not open file" << endl;
@@ -42,25 +50,89 @@ vector<int> readFromFile(string fileName, int threads,int chunks){
     else
     {
         std::string line;
-        while(std::getline(inputFile,line)){
-            int num = stoi(line);
-            returned.push_back(num);
+        //tasks that will handle the first half of the elements
+        #pragma omp task shared(inputFile, middle, returned), firstprivate(line)
+        {
+            int ptr = 0;
+            while(ptr < middle && getline(inputFile,line))
+            {
+                for(int i = ptr; i < ptr + chunksAndFileSize[0]; i++)
+                {
+                    returned.push_back(stoi(line));
+                }
+                if(isNotSorted(returned))
+                {
+                    answer = "Not Sorted";
+                    break;
+                }
+                ptr += chunksAndFileSize[0];
+            }
         }
+
+        //tasks that will handle the last half of the elements
+        #pragma omp task shared(inputFile, middle, returned), firstprivate(line)
+        {
+            int ptr = middle;
+            while(ptr < chunksAndFileSize[1] && getline(inputFile,line))
+            {
+                for(int i = ptr; i < ptr + chunksAndFileSize[0]; i++)
+                {
+                    returned.push_back(stoi(line));
+                }
+                if(isNotSorted(returned))
+                {
+                    answer = "Not Sorted";
+                    break;
+                }
+                ptr += chunksAndFileSize[0];
+            }
+
+
+        }
+
+
         inputFile.close();
     }
-    return returned;
+    return answer;
 }
 
-fileSize
+
+bool isNotSorted(vector<int> nums)
+{
+    //assume that the list will be in descending order
+    //means that elements will get smaller as you go further in the list.
+    bool descending = true;
+    if(nums.size() < 2){
+        cout << "error invalid input: ";
+
+    }
+    else{
+        //elements are getting larger as you go further in the list so all other elements must follow suit.
+        if (nums[0] < nums[1]){
+            descending = false;
+        }
+
+        for(int i = 0; i < nums.size() - 1; i++){
+
+            if((nums[i] < nums[i+1] && descending) || (nums[i] > nums[i+1] && descending == false)){
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+int main()
+{
     int threads = omp_get_max_threads();
 
     //bytes of data in the file
-    int chunks = calculateFileSize("prob3input.dat", threads);
+    vector<int> data = calculateFileSize("prob3input.dat", threads);
     #pragma omp parallel
     {
         #pragma omp single
         {
-            readFromFile("prob3input.dat", threads, chunks);
+            string result = readFromFile("prob3input.dat", threads, data);
         }
     }
     
