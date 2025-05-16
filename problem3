@@ -30,38 +30,6 @@ vector<streampos> offsets(string fileName, int threads)
         fileSize = filesystem::file_size(filePath);
         cout << "The size of the file is: " << fileSize << " bytes " << endl;
         
-    }#include <iostream>
-#include <fstream>
-#include <vector>
-#include <omp.h>
-#include <string>
-#include <filesystem>
-#include <mutex>
-
-
-using namespace std;
-
-
-bool isNotSorted(vector<int> nums);
-vector<streampos> offsets(string filename, int threads);
-string readFromFile(string fileName, int threads,vector<int>chunksAndFileSize);
-
-
-
-
-
-vector<streampos> offsets(string fileName, int threads)
-{
-    filesystem::path filePath = fileName;
-    //stores the fileSize in bytes
-    std::streampos fileSize;
-    vector<streampos> offsets(threads + 1);
-
-    if(filesystem::exists(filePath))
-    {
-        fileSize = filesystem::file_size(filePath);
-        cout << "The size of the file is: " << fileSize << " bytes " << endl;
-        
     }
     else
     {
