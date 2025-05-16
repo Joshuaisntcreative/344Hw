@@ -41,6 +41,9 @@ vector<streampos> offsets(string fileName, int threads)
         offsets[i] = fileSize * i / threads;
         cout << "Thread #" << i << " will start from " << offsets[i] << endl;
     }
+
+    offsets[threads] = fileSize;
+    cout << "End of the last threads is " << fileSize << endl;
     return offsets;
 
 }
@@ -50,6 +53,11 @@ string readFromFile(string fileName, int threads,vector<streampos>offsets){
     
     string answer = "Sorted";
     mutex resultMutex;
+
+
+    vector<int> firstVals(threads), lastVals(threads);
+    vector<bool> hasData(threads, false);
+
     #pragma omp parallel
     {
         #pragma omp single
@@ -61,12 +69,23 @@ string readFromFile(string fileName, int threads,vector<streampos>offsets){
                     ifstream file(fileName);
                     file.seekg(offsets[i]);
                     
+                    if(i != 0){
+                        string dummy;
+                        getline(file, dummy);
+                    }
+                    
                     vector<int> numbers;
                     string line;
                     while(file.tellg() < offsets[i+1] && getline(file, line)){
                         if(!line.empty()){
                             numbers.push_back(stoi(line));
                         }
+                    }
+                    if(!numbers.empty())
+                    {
+                        hasData[i]=true;
+                        firstVals[i] = numbers.front();
+                        lastVals[i] = numbers.back();
                     }
 
                     if(isNotSorted(numbers))
@@ -80,7 +99,16 @@ string readFromFile(string fileName, int threads,vector<streampos>offsets){
                 
             }
             #pragma omp taskwait
-            
+            for (int i = 0; i < threads - 1; i++){
+                if(hasData[i] > firstVals[i+1]){
+                    if(lastVals[i] > firstVals[i+1]){
+                        answer = "Not Sorted";
+                        break;
+                    }
+
+                }
+            }
+
         }
     }
     return answer;
