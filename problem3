@@ -11,19 +11,20 @@ using namespace std;
 
 
 bool isNotSorted(vector<int> nums);
-vector<streampos> offsets(string filename, int threads);
+vector<int> offsets(string filename, int threads);
 string readFromFile(string fileName, int threads,vector<int>chunksAndFileSize);
 
 
 
 
 
-vector<streampos> offsets(string fileName, int threads)
+vector<int> offsets(string fileName, int threads)
 {
     filesystem::path filePath = fileName;
     //stores the fileSize in bytes
     std::streampos fileSize;
-    vector<streampos> offsets(threads + 1);
+    vector<int> offsets(threads);
+    int offset = 0;
 
     if(filesystem::exists(filePath))
     {
@@ -31,19 +32,17 @@ vector<streampos> offsets(string fileName, int threads)
         cout << "The size of the file is: " << fileSize << " bytes " << endl;
         
     }
-    else
-    {
-        std::cout << "Problem finding File" << endl;
-        
-    }
-    cout << fileSize / threads << "bytes is the amount each thread will compute" << endl;
-    for(int i = 0; i < threads; i++){
-        offsets[i] = fileSize * i / threads;
-        cout << "Thread #" << i << " will start from " << offsets[i] << endl;
-    }
 
-    offsets[threads] = fileSize;
-    cout << "End of the last threads is " << fileSize << endl;
+    int bytesPerThread = fileSize / threads;
+    cout << "bytes per thread " << bytesPerThread << endl;
+    //2 is the size per line, so for every byte in each thread we will have chunk lines
+    int chunks = bytesPerThread / 2;
+    cout << "chunks: " << chunks << endl;
+    for(int i = 0; i < threads; i++)
+    {
+        //will have each value of where to start reading data from with each thread
+        offsets[i] = chunks * i;
+    }
     return offsets;
 
 }
@@ -76,31 +75,36 @@ string readFromFile(string fileName, int threads,vector<streampos>offsets){
                     
                     vector<int> numbers;
                     string line;
-                    while(file.tellg() < offsets[i+1] && getline(file, line)){
+                    streampos chunkEnd = offsets[i+1];
+                    while(file.peek() != EOF && file.tellg() < chunkEnd){
+                        streampos lineStart = file.tellg();
+                        getline(file,line);
+                    
                         if(!line.empty()){
                             numbers.push_back(stoi(line));
                         }
-                    }
-                    if(!numbers.empty())
-                    {
-                        hasData[i]=true;
-                        firstVals[i] = numbers.front();
-                        lastVals[i] = numbers.back();
+
+                        if(file.tellg() == -1 || file.tellg() >= chunkEnd) break;
+                    
                     }
 
-                    if(isNotSorted(numbers))
+                    #pragma omp critical
+                    {
+                        cout << "Thread " << i << " loaded " << numbers.size() << " numbers " << endl;
+                    }
+
+                    if(!numbers.empty() && isNotSorted(numbers))
                     {
                         lock_guard<mutex> lock(resultMutex);
-                        answer = "Not sorted";
+                        answer = "Not Sorted";
                     }
 
 
                 }
-                
             }
             #pragma omp taskwait
             for (int i = 0; i < threads - 1; i++){
-                if(hasData[i] > firstVals[i+1]){
+                if(hasData[i] && hasData[i+1]){
                     if(lastVals[i] > firstVals[i+1]){
                         answer = "Not Sorted";
                         break;
@@ -113,7 +117,6 @@ string readFromFile(string fileName, int threads,vector<streampos>offsets){
     }
     return answer;
 }
-
 
 bool isNotSorted(vector<int> nums)
 {
@@ -134,17 +137,19 @@ bool isNotSorted(vector<int> nums)
     return false;
 }
 
+
+
 int main()
 {
     int threads = omp_get_max_threads();
     
 
     //bytes of data in the file
-    vector<streampos> offsetValues = offsets("prob3input.dat", threads);
+    vector<int> offsetValues = offsets("prob3input.dat", threads);
 
 
 
-    string result = readFromFile("prob3input.dat", threads, offsetValues);
-    cout << (result) << endl;
+    // string result = readFromFile("prob3input.dat", threads, offsetValues);
+    // cout << (result) << endl;
 }
 
